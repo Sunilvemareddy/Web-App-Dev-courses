@@ -1,6 +1,3 @@
-// Fix: Add triple-slash directive to provide types for import.meta.env.
-/// <reference types="vite/client" />
-
 import React, { useState, useEffect } from 'react';
 import RoadmapDisplay from './components/RoadmapDisplay';
 import AiToolkit from './components/AiToolkit';
@@ -38,6 +35,8 @@ function App() {
     // In a Vite project, environment variables prefixed with VITE_ are exposed to the client-side code.
     // We check for the presence of this variable to determine if the API key is configured.
     const checkApiKey = () => {
+        // Log environment variables for debugging purposes on Vercel
+        console.log('Vite Environment Variables:', import.meta.env);
         const hasKey = !!import.meta.env.VITE_API_KEY;
         setIsApiKeyConfigured(hasKey);
     };
