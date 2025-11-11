@@ -1,120 +1,140 @@
-import React, { useState, useCallback } from 'react';
-import { Month, Week, Resource } from '../types';
-import { ROADMAP_DATA, BookOpenIcon, CodeBracketIcon, SparklesIcon, LoadingSpinner } from '../constants';
-import { fetchLearningResources } from '../services/geminiService';
+import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
+import { AspectRatio, Resource, GroundingChunk } from '../types';
+import { decode, decodeAudioData } from '../utils/audioUtils';
 
-interface ResourceDisplayProps {
-    resource: Resource;
+const API_KEY = process.env.API_KEY;
+
+if (!API_KEY) {
+    throw new Error("API_KEY environment variable not set");
 }
 
-const ResourceDisplay: React.FC<ResourceDisplayProps> = ({ resource }) => {
-    return (
-        <div className="mt-4 p-4 bg-gray-800 border border-gray-700 rounded-lg">
-            <p className="text-gray-300 whitespace-pre-wrap">{resource.text}</p>
-            {resource.sources && resource.sources.length > 0 && (
-                <div className="mt-4">
-                    <h4 className="font-semibold text-cyan-400">Sources:</h4>
-                    <ul className="list-disc list-inside mt-2 space-y-1">
-                        {resource.sources.map((source, index) => (
-                            <li key={index}>
-                                <a href={source.web?.uri || source.maps?.uri} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                                    {source.web?.title || source.maps?.title || 'Untitled Source'}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
+const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+export async function fetchLearningResources(topic: string): Promise<Resource> {
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Find the best online learning resources for "${topic}". Provide a brief overview and ensure the source links point directly to specific, high-quality tutorials, articles, or videos. The links must not be homepages. For example, instead of 'reactjs.org', the link should be 'reactjs.org/docs/getting-started.html'. Focus on free and reputable sources.`,
+            config: {
+                tools: [{ googleSearch: {} }],
+            },
+        });
+
+        const text = response.text;
+        const sources: GroundingChunk[] = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+        return { text, sources };
+    } catch (error) {
+        console.error("Error fetching learning resources:", error);
+        return { text: "Sorry, I couldn't fetch resources at the moment. Please try again later.", sources: [] };
+    }
+}
+
+export async function findLocalStudySpots(query: string, coords: GeolocationCoordinates): Promise<Resource> {
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Find ${query} near my current location.`,
+            config: {
+                tools: [{ googleMaps: {} }],
+                toolConfig: {
+                    retrievalConfig: {
+                        latLng: {
+                            latitude: coords.latitude,
+                            longitude: coords.longitude,
+                        }
+                    }
+                }
+            },
+        });
+        const text = response.text;
+        const sources: GroundingChunk[] = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+        return { text, sources };
+
+    } catch (error) {
+        console.error("Error finding local study spots:", error);
+        return { text: "Sorry, I couldn't find any spots. Make sure location permissions are enabled.", sources: [] };
+    }
+}
+
+export async function getAiTutorResponse(prompt: string, useThinkingMode: boolean): Promise<string> {
+    try {
+        const model = useThinkingMode ? "gemini-2.5-pro" : "gemini-2.5-flash";
+        const config = useThinkingMode ? { thinkingConfig: { thinkingBudget: 32768 } } : {};
+        
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: config,
+        });
+
+        return response.text;
+    } catch (error) {
+        console.error("Error with AI Tutor:", error);
+        return "An error occurred while getting a response from the AI tutor.";
+    }
+}
+
+export async function generateImage(prompt: string, aspectRatio: AspectRatio): Promise<string | null> {
+    try {
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: prompt,
+            config: {
+              numberOfImages: 1,
+              outputMimeType: 'image/jpeg',
+              aspectRatio: aspectRatio,
+            },
+        });
+        
+        if (response.generatedImages && response.generatedImages.length > 0) {
+            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+            return `data:image/jpeg;base64,${base64ImageBytes}`;
+        }
+        return null;
+
+    } catch (error) {
+        console.error("Error generating image:", error);
+        return null;
+    }
+}
+
+let audioContext: AudioContext | null = null;
+const getAudioContext = () => {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    return audioContext;
 };
 
+export async function generateSpeech(text: string): Promise<void> {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: text }] }],
+            config: {
+              // Fix: Use Modality enum for responseModalities per Gemini API guidelines.
+              responseModalities: [Modality.AUDIO],
+              speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: 'Kore' },
+                  },
+              },
+            },
+          });
 
-interface WeekItemProps {
-    week: Week;
-}
-
-const WeekItem: React.FC<WeekItemProps> = ({ week }) => {
-    const [resource, setResource] = useState<Resource | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleFindResources = useCallback(async () => {
-        if (resource) {
-            // Toggle off if already open
-            setResource(null);
-            return;
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if(base64Audio) {
+            const ctx = getAudioContext();
+            const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(ctx.destination);
+            source.start();
         }
-        setIsLoading(true);
-        setError(null);
-        try {
-            const result = await fetchLearningResources(week.learning);
-            setResource(result);
-        } catch (err) {
-            setError('Failed to fetch resources.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [week.learning, resource]);
 
-    return (
-        <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 transition-all duration-300 hover:border-cyan-500/50 hover:bg-gray-800">
-            <div className="flex justify-between items-start">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold bg-cyan-900/50 text-cyan-300 py-1 px-2 rounded-full">WEEK {week.week}</span>
-                    </div>
-                    <div className="flex items-start gap-3 mt-3">
-                        <BookOpenIcon className="w-5 h-5 mt-1 text-gray-400 shrink-0" />
-                        <p className="font-semibold text-gray-100">{week.learning}</p>
-                    </div>
-                    <div className="flex items-start gap-3 mt-2">
-                        <CodeBracketIcon className="w-5 h-5 mt-1 text-gray-400 shrink-0" />
-                        <p className="text-gray-400">{week.practice}</p>
-                    </div>
-                </div>
-                <button
-                    onClick={handleFindResources}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 bg-cyan-600 text-white px-3 py-2 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-semibold shrink-0"
-                >
-                    <SparklesIcon className="w-4 h-4" />
-                    <span>{resource ? 'Hide' : 'Resources'}</span>
-                </button>
-            </div>
-            {isLoading && <LoadingSpinner />}
-            {error && <p className="text-red-400 mt-4">{error}</p>}
-            {resource && !isLoading && <ResourceDisplay resource={resource} />}
-        </div>
-    );
-};
-
-
-interface MonthCardProps {
-    month: Month;
+    } catch (error) {
+        console.error("Error generating speech:", error);
+    }
 }
-const MonthCard: React.FC<MonthCardProps> = ({ month }) => (
-     <div className="mb-8">
-        <h2 className="text-2xl font-bold text-cyan-400 mb-4 pb-2 border-b-2 border-gray-700">{month.title}</h2>
-        <div className="space-y-4">
-            {month.weeks.map((week) => (
-                <WeekItem key={`${month.title}-${week.week}`} week={week} />
-            ))}
-        </div>
-    </div>
-);
-
-
-const RoadmapDisplay: React.FC = () => {
-    return (
-        <div className="w-full max-w-4xl mx-auto px-4 py-8">
-            <h1 className="text-4xl font-extrabold text-center mb-2 text-white">6-Month Learning Plan</h1>
-            <p className="text-center text-gray-400 mb-12">Your interactive roadmap to becoming a Web & App Developer.</p>
-            {ROADMAP_DATA.map((month) => (
-                <MonthCard key={month.title} month={month} />
-            ))}
-        </div>
-    );
-}
-
-export default RoadmapDisplay;
