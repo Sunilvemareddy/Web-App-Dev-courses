@@ -1,14 +1,17 @@
+// Fix: Add triple-slash directive to provide types for import.meta.env.
+/// <reference types="vite/client" />
+
 import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
 import { AspectRatio, Resource, GroundingChunk } from '../types';
 import { decode, decodeAudioData } from '../utils/audioUtils';
 
-const MISSING_KEY_ERROR = "Error: API_KEY is not configured. The AI features are disabled.";
+const MISSING_KEY_ERROR = "Error: VITE_API_KEY is not configured. The AI features are disabled.";
 
 // Create a new GoogleGenAI instance on-demand to ensure the latest API key is used.
 function getAiClient() {
-    const API_KEY = process.env.API_KEY;
+    const API_KEY = import.meta.env.VITE_API_KEY;
     if (!API_KEY) {
-        console.error("API_KEY environment variable not set. AI features will be disabled.");
+        console.error("VITE_API_KEY environment variable not set. AI features will be disabled.");
         return null;
     }
     return new GoogleGenAI({ apiKey: API_KEY });
