@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import RoadmapDisplay from './components/RoadmapDisplay';
 import AiToolkit from './components/AiToolkit';
 
@@ -16,7 +16,39 @@ const Header: React.FC = () => (
     </header>
 );
 
+// Add a type declaration for the aistudio object on the window
+// Fix: Extracted inline type to a named interface `AIStudio` to resolve declaration conflict.
+interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+}
+declare global {
+    interface Window {
+        aistudio?: AIStudio;
+    }
+}
+
 function App() {
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsApiKeyConfigured(hasKey);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleConfigureApiKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      // Assume key selection was successful to update UI immediately
+      setIsApiKeyConfigured(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       <Header />
@@ -27,7 +59,7 @@ function App() {
             </div>
             <aside className="lg:w-1/2 lg:sticky lg:top-20 self-start">
                  <h2 className="text-3xl font-bold text-center mb-4 text-white">AI Learning Toolkit</h2>
-                <AiToolkit />
+                <AiToolkit isApiKeyConfigured={isApiKeyConfigured} onConfigureApiKey={handleConfigureApiKey} />
             </aside>
         </div>
       </main>
