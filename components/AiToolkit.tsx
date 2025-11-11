@@ -3,6 +3,32 @@ import { AiTool, AspectRatio, ChatMessage, Resource } from '../types';
 import { getAiTutorResponse, generateImage, findLocalStudySpots, generateSpeech } from '../services/geminiService';
 import { LoadingSpinner } from '../constants';
 
+interface AiToolkitProps {
+    isApiKeyConfigured: boolean;
+    onConfigureApiKey: () => void;
+}
+
+const ApiKeyPrompt: React.FC<{ onConfigure: () => void }> = ({ onConfigure }) => (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-800/50 rounded-lg border border-gray-700/50">
+        <h3 className="text-xl font-bold text-white mb-2">AI Features Disabled</h3>
+        <p className="text-gray-400 mb-4">
+            Please configure your API key to use the AI Learning Toolkit.
+        </p>
+        <button
+            onClick={onConfigure}
+            className="bg-cyan-600 text-white px-6 py-2 rounded-md hover:bg-cyan-500 transition-colors"
+        >
+            Configure API Key
+        </button>
+        <p className="text-xs text-gray-500 mt-3">
+            For more information, see the{' '}
+            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline hover:text-cyan-400">
+                billing documentation
+            </a>.
+        </p>
+    </div>
+);
+
 const AiTutor: React.FC = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([
         { role: 'model', content: "Hello! I'm your AI Tutor. How can I help you with your studies today?" }
@@ -191,7 +217,7 @@ const StudySpotFinder: React.FC = () => {
     );
 };
 
-const AiToolkit: React.FC = () => {
+const AiToolkit: React.FC<AiToolkitProps> = ({ isApiKeyConfigured, onConfigureApiKey }) => {
     const [activeTool, setActiveTool] = useState<AiTool>(AiTool.Tutor);
 
     const renderTool = () => {
@@ -206,6 +232,14 @@ const AiToolkit: React.FC = () => {
                 return null;
         }
     };
+
+    if (!isApiKeyConfigured) {
+        return (
+            <div className="w-full max-w-2xl h-[70vh] flex flex-col">
+                <ApiKeyPrompt onConfigure={onConfigureApiKey} />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-2xl h-[70vh] flex flex-col">
