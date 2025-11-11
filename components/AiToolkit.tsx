@@ -5,26 +5,16 @@ import { LoadingSpinner } from '../constants';
 
 interface AiToolkitProps {
     isApiKeyConfigured: boolean;
-    onConfigureApiKey: () => void;
 }
 
-const ApiKeyPrompt: React.FC<{ onConfigure: () => void }> = ({ onConfigure }) => (
+const ApiKeyPrompt: React.FC = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-gray-800/50 rounded-lg border border-gray-700/50">
         <h3 className="text-xl font-bold text-white mb-2">AI Features Disabled</h3>
         <p className="text-gray-400 mb-4">
-            Please configure your API key to use the AI Learning Toolkit.
+            The VITE_API_KEY environment variable is not configured.
         </p>
-        <button
-            onClick={onConfigure}
-            className="bg-cyan-600 text-white px-6 py-2 rounded-md hover:bg-cyan-500 transition-colors"
-        >
-            Configure API Key
-        </button>
-        <p className="text-xs text-gray-500 mt-3">
-            For more information, see the{' '}
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline hover:text-cyan-400">
-                billing documentation
-            </a>.
+        <p className="text-sm text-gray-500">
+            Please set this variable in your deployment environment to enable AI features.
         </p>
     </div>
 );
@@ -217,7 +207,7 @@ const StudySpotFinder: React.FC = () => {
     );
 };
 
-const AiToolkit: React.FC<AiToolkitProps> = ({ isApiKeyConfigured, onConfigureApiKey }) => {
+const AiToolkit: React.FC<AiToolkitProps> = ({ isApiKeyConfigured }) => {
     const [activeTool, setActiveTool] = useState<AiTool>(AiTool.Tutor);
 
     const renderTool = () => {
@@ -236,7 +226,7 @@ const AiToolkit: React.FC<AiToolkitProps> = ({ isApiKeyConfigured, onConfigureAp
     if (!isApiKeyConfigured) {
         return (
             <div className="w-full max-w-2xl h-[70vh] flex flex-col">
-                <ApiKeyPrompt onConfigure={onConfigureApiKey} />
+                <ApiKeyPrompt />
             </div>
         );
     }
