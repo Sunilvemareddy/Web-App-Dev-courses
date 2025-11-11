@@ -1,6 +1,3 @@
-// Fix: Add triple-slash directive to provide types for import.meta.env.
-/// <reference types="vite/client" />
-
 import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
 import { AspectRatio, Resource, GroundingChunk } from '../types';
 import { decode, decodeAudioData } from '../utils/audioUtils';
