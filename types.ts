@@ -38,3 +38,12 @@ export enum AiTool {
   ImageGen = 'Image Generator',
   StudySpots = 'Study Spot Finder'
 }
+
+// Fix: Define types for import.meta.env to resolve TypeScript errors with Vite environment variables globally.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_API_KEY: string;
+    }
+  }
+}
