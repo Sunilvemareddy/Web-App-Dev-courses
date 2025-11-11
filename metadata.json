@@ -1,0 +1,7 @@
+{
+  "name": "SVR Study Circle",
+  "description": "An interactive 6-month learning plan for web and app development, supercharged with AI tools to help you learn faster and smarter.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
