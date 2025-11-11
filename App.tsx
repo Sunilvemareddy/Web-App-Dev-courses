@@ -1,3 +1,6 @@
+// Fix: Add triple-slash directive to provide types for import.meta.env.
+/// <reference types="vite/client" />
+
 import React, { useState, useEffect } from 'react';
 import RoadmapDisplay from './components/RoadmapDisplay';
 import AiToolkit from './components/AiToolkit';
@@ -17,12 +20,12 @@ const Header: React.FC = () => (
 );
 
 // Add a type declaration for the aistudio object on the window
-// Fix: Extracted inline type to a named interface `AIStudio` to resolve declaration conflict.
-interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-}
+// Fix: Moved AIStudio interface inside declare global to resolve declaration conflict.
 declare global {
+    interface AIStudio {
+        hasSelectedApiKey: () => Promise<boolean>;
+        openSelectKey: () => Promise<void>;
+    }
     interface Window {
         aistudio?: AIStudio;
     }
@@ -32,22 +35,14 @@ function App() {
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
   useEffect(() => {
-    const checkApiKey = async () => {
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
+    // In a Vite project, environment variables prefixed with VITE_ are exposed to the client-side code.
+    // We check for the presence of this variable to determine if the API key is configured.
+    const checkApiKey = () => {
+        const hasKey = !!import.meta.env.VITE_API_KEY;
         setIsApiKeyConfigured(hasKey);
-      }
     };
     checkApiKey();
   }, []);
-
-  const handleConfigureApiKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      // Assume key selection was successful to update UI immediately
-      setIsApiKeyConfigured(true);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -59,7 +54,7 @@ function App() {
             </div>
             <aside className="lg:w-1/2 lg:sticky lg:top-20 self-start">
                  <h2 className="text-3xl font-bold text-center mb-4 text-white">AI Learning Toolkit</h2>
-                <AiToolkit isApiKeyConfigured={isApiKeyConfigured} onConfigureApiKey={handleConfigureApiKey} />
+                <AiToolkit isApiKeyConfigured={isApiKeyConfigured} />
             </aside>
         </div>
       </main>
