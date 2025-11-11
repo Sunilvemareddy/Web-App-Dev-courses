@@ -2,18 +2,20 @@ import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
 import { AspectRatio, Resource, GroundingChunk } from '../types';
 import { decode, decodeAudioData } from '../utils/audioUtils';
 
-const API_KEY = process.env.API_KEY;
-
-// Initialize ai only if API_KEY is present
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-
 const MISSING_KEY_ERROR = "Error: API_KEY is not configured. The AI features are disabled.";
 
-if (!ai) {
-    console.error("API_KEY environment variable not set. AI features will be disabled.");
+// Create a new GoogleGenAI instance on-demand to ensure the latest API key is used.
+function getAiClient() {
+    const API_KEY = process.env.API_KEY;
+    if (!API_KEY) {
+        console.error("API_KEY environment variable not set. AI features will be disabled.");
+        return null;
+    }
+    return new GoogleGenAI({ apiKey: API_KEY });
 }
 
 export async function fetchLearningResources(topic: string): Promise<Resource> {
+    const ai = getAiClient();
     if (!ai) {
         return { text: MISSING_KEY_ERROR, sources: [] };
     }
@@ -37,6 +39,7 @@ export async function fetchLearningResources(topic: string): Promise<Resource> {
 }
 
 export async function findLocalStudySpots(query: string, coords: GeolocationCoordinates): Promise<Resource> {
+    const ai = getAiClient();
     if (!ai) {
         return { text: MISSING_KEY_ERROR, sources: [] };
     }
@@ -68,6 +71,7 @@ export async function findLocalStudySpots(query: string, coords: GeolocationCoor
 }
 
 export async function getAiTutorResponse(prompt: string, useThinkingMode: boolean): Promise<string> {
+    const ai = getAiClient();
     if (!ai) {
         return MISSING_KEY_ERROR;
     }
@@ -89,6 +93,7 @@ export async function getAiTutorResponse(prompt: string, useThinkingMode: boolea
 }
 
 export async function generateImage(prompt: string, aspectRatio: AspectRatio): Promise<string | null> {
+    const ai = getAiClient();
     if (!ai) {
         console.error(MISSING_KEY_ERROR);
         return null;
@@ -125,6 +130,7 @@ const getAudioContext = () => {
 };
 
 export async function generateSpeech(text: string): Promise<void> {
+    const ai = getAiClient();
     if (!ai) {
         console.error(MISSING_KEY_ERROR);
         return;
@@ -134,7 +140,6 @@ export async function generateSpeech(text: string): Promise<void> {
             model: "gemini-2.5-flash-preview-tts",
             contents: [{ parts: [{ text: text }] }],
             config: {
-              // Fix: Use Modality enum for responseModalities per Gemini API guidelines.
               responseModalities: [Modality.AUDIO],
               speechConfig: {
                   voiceConfig: {
