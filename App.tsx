@@ -19,11 +19,11 @@ const Header: React.FC = () => (
 function App() {
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
-  // Ask the serverless function if the key is available (don’t read VITE_* on client)
+  // Ask the server; do NOT read VITE_* on the client
   useEffect(() => {
     fetch('/api/health')
-      .then((r) => r.json())
-      .then((d) => setIsApiKeyConfigured(!!d.ok))
+      .then(r => r.json())
+      .then(d => setIsApiKeyConfigured(!!d.ok))
       .catch(() => setIsApiKeyConfigured(false));
   }, []);
 
