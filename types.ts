@@ -9,9 +9,10 @@ export interface Month {
   weeks: Week[];
 }
 
+// Fix: Made uri and title optional to match the GroundingChunk type from the @google/genai library.
 export interface GroundingSource {
-  uri: string;
-  title: string;
+  uri?: string;
+  title?: string;
 }
 
 export interface GroundingChunk {
