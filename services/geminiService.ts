@@ -4,13 +4,19 @@ import { decode, decodeAudioData } from '../utils/audioUtils';
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+// Initialize ai only if API_KEY is present
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+
+const MISSING_KEY_ERROR = "Error: API_KEY is not configured. The AI features are disabled.";
+
+if (!ai) {
+    console.error("API_KEY environment variable not set. AI features will be disabled.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
 export async function fetchLearningResources(topic: string): Promise<Resource> {
+    if (!ai) {
+        return { text: MISSING_KEY_ERROR, sources: [] };
+    }
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -31,6 +37,9 @@ export async function fetchLearningResources(topic: string): Promise<Resource> {
 }
 
 export async function findLocalStudySpots(query: string, coords: GeolocationCoordinates): Promise<Resource> {
+    if (!ai) {
+        return { text: MISSING_KEY_ERROR, sources: [] };
+    }
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -59,6 +68,9 @@ export async function findLocalStudySpots(query: string, coords: GeolocationCoor
 }
 
 export async function getAiTutorResponse(prompt: string, useThinkingMode: boolean): Promise<string> {
+    if (!ai) {
+        return MISSING_KEY_ERROR;
+    }
     try {
         const model = useThinkingMode ? "gemini-2.5-pro" : "gemini-2.5-flash";
         const config = useThinkingMode ? { thinkingConfig: { thinkingBudget: 32768 } } : {};
@@ -77,6 +89,10 @@ export async function getAiTutorResponse(prompt: string, useThinkingMode: boolea
 }
 
 export async function generateImage(prompt: string, aspectRatio: AspectRatio): Promise<string | null> {
+    if (!ai) {
+        console.error(MISSING_KEY_ERROR);
+        return null;
+    }
     try {
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
@@ -109,6 +125,10 @@ const getAudioContext = () => {
 };
 
 export async function generateSpeech(text: string): Promise<void> {
+    if (!ai) {
+        console.error(MISSING_KEY_ERROR);
+        return;
+    }
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
